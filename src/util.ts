@@ -32,11 +32,15 @@ export const uploadUrl = (url: string): string => {
 };
 
 export const releaseBody = (config: Config): string | undefined => {
-  return (
-    (config.input_body_path &&
-      readFileSync(config.input_body_path).toString("utf8")) ||
-    config.input_body
-  );
+  if (config.input_body_path) {
+    try {
+      return readFileSync(config.input_body_path).toString("utf8")
+    } catch {
+      // file not found
+    }
+  }
+
+  return config.input_body;
 };
 
 type Env = { [key: string]: string | undefined };
