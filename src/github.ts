@@ -1,7 +1,6 @@
 import { GitHub } from "@actions/github/lib/utils";
 import { Config, isTag, releaseBody, alignAssetName } from "./util";
-import { statSync } from "fs";
-import { open } from "fs/promises";
+import { readFileSync, statSync } from "fs";
 import { getType } from "mime";
 import { basename } from "path";
 
@@ -178,31 +177,33 @@ export const upload = async (
   console.log(`⬆️ Uploading ${name}...`);
   const endpoint = new URL(url);
   endpoint.searchParams.append("name", name);
-  const fh = await open(path);
-  try {
-    const resp = await github.request({
-      method: "POST",
-      url: endpoint.toString(),
-      headers: {
-        "content-length": `${size}`,
-        "content-type": mime,
-        authorization: `token ${config.github_token}`,
-      },
-      data: fh.readableWebStream({ type: "bytes" }),
-    });
-    const json = resp.data;
-    if (resp.status !== 201) {
-      throw new Error(
-        `Failed to upload release asset ${name}. received status code ${
-          resp.status
-        }\n${json.message}\n${JSON.stringify(json.errors)}`,
-      );
-    }
-    console.log(`✅ Uploaded ${name}`);
-    return json;
-  } finally {
-    await fh.close();
+  // Octokit's Undici transport may terminate FileHandle Web streams early while
+  // preserving this explicit content-length header. Upload bytes instead: the
+  // body length is then deterministic and matches the declared file size.
+  const data = readFileSync(path);
+  if (data.byteLength !== size) {
+    throw new Error(`Failed to read complete release asset ${name}`);
   }
+  const resp = await github.request({
+    method: "POST",
+    url: endpoint.toString(),
+    headers: {
+      "content-length": `${data.byteLength}`,
+      "content-type": mime,
+      authorization: `token ${config.github_token}`,
+    },
+    data,
+  });
+  const json = resp.data;
+  if (resp.status !== 201) {
+    throw new Error(
+      `Failed to upload release asset ${name}. received status code ${
+        resp.status
+      }\n${json.message}\n${JSON.stringify(json.errors)}`,
+    );
+  }
+  console.log(`✅ Uploaded ${name}`);
+  return json;
 };
 
 export const release = async (

@@ -1,5 +1,4 @@
 import * as assert from "assert";
-import { text } from "stream/consumers";
 import { mimeOrDefault, asset } from "../src/github";
 
 describe("github", () => {
