@@ -196,7 +196,6 @@ export const upload = async (
     method: "POST",
     url: endpoint.toString(),
     headers: {
-      "content-length": `${data.byteLength}`,
       "content-type": mime,
       authorization: `token ${config.github_token}`,
     },

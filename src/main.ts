@@ -100,16 +100,47 @@ async function run() {
         return json;
       };
 
-      let assets;
+      let results: PromiseSettledResult<any>[];
       if (!config.input_preserve_order) {
-        assets = await Promise.all(files.map(uploadFile));
+        results = await Promise.allSettled(files.map(uploadFile));
       } else {
-        assets = [];
+        results = [];
         for (const path of files) {
-          assets.push(await uploadFile(path));
+          try {
+            const asset = await uploadFile(path);
+            results.push({ status: "fulfilled", value: asset });
+          } catch (reason) {
+            results.push({ status: "rejected", reason });
+          }
         }
       }
+
+      const assets: any[] = [];
+      const failedUploads: string[] = [];
+
+      results.forEach((result, index) => {
+        const filePath = files[index];
+        if (result.status === "fulfilled") {
+          assets.push(result.value);
+        } else {
+          const reason = result.reason;
+          const errorMessage =
+            reason instanceof Error ? reason.message : String(reason);
+          console.error(
+            `❌ Failed to upload asset '${filePath}': ${errorMessage}`,
+          );
+          failedUploads.push(`'${filePath}': ${errorMessage}`);
+        }
+      });
+
       setOutput("assets", assets);
+
+      if (failedUploads.length > 0) {
+        throw new Error(
+          `⚠️ Failed to upload ${failedUploads.length} release asset(s):\n` +
+            failedUploads.map((err) => `  - ${err}`).join("\n"),
+        );
+      }
     }
     console.log(`🎉 Release ready at ${rel.html_url}`);
     setOutput("url", rel.html_url);
