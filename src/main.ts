@@ -40,8 +40,18 @@ async function run() {
     //   require("@octokit/plugin-retry")
     // );
 
+    const hasProxy =
+      process.env.HTTP_PROXY ||
+      process.env.HTTPS_PROXY ||
+      process.env.http_proxy ||
+      process.env.https_proxy;
+    const fetchApi =
+      !hasProxy && typeof globalThis.fetch === "function"
+        ? (url: any, opts: any) => globalThis.fetch(url, opts)
+        : undefined;
+
     const gh = getOctokit(config.github_token, {
-      //new oktokit(
+      ...(fetchApi ? { request: { fetch: fetchApi } } : {}),
       throttle: {
         onRateLimit: (retryAfter, options) => {
           console.warn(
