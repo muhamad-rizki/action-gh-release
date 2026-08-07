@@ -101,7 +101,11 @@ export class GitHubReleaser implements Releaser {
       params.make_latest = undefined;
     }
 
-    return this.github.rest.repos.createRelease(params);
+    const cleanParams = Object.fromEntries(
+      Object.entries(params).filter(([_, v]) => v !== undefined),
+    ) as any;
+
+    return this.github.rest.repos.createRelease(cleanParams);
   }
 
   updateRelease(params: {
@@ -125,7 +129,11 @@ export class GitHubReleaser implements Releaser {
       params.make_latest = undefined;
     }
 
-    return this.github.rest.repos.updateRelease(params);
+    const cleanParams = Object.fromEntries(
+      Object.entries(params).filter(([_, v]) => v !== undefined),
+    ) as any;
+
+    return this.github.rest.repos.updateRelease(cleanParams);
   }
 
   allReleases(params: {
@@ -314,7 +322,7 @@ export const release = async (
   } catch (error) {
     if (error.status !== 404) {
       console.log(
-        `⚠️ Unexpected error fetching GitHub release for tag ${config.github_ref}: ${error}`,
+        `⚠️ Unexpected error fetching GitHub release for tag ${tag || config.github_ref}: ${error}`,
       );
       throw error;
     }
